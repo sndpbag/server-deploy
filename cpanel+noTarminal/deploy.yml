@@ -1,0 +1,78 @@
+# This is the base script for the GitHub Action.
+# Save this file as ".github/workflows/deploy.yml" in your Laravel project root.
+
+name: Deploy Laravel to cPanel via FTP
+
+# This action triggers on push events to the 'main' branch.
+# Change 'main' to 'master' or any other branch you use for production.
+on:
+  push:
+    branches:
+      - main  
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest # Use a GitHub-hosted runner
+
+    steps:
+    # 1. Check out the repository code
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # 2. Set up the PHP environment
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1' # Specify your project's PHP version
+        extensions: mbstring, dom, fileinfo, curl, zip # Add necessary PHP extensions
+        tools: composer # Install composer
+
+    # 3. Create the production .env file from GitHub Secrets
+    - name: Create .env file
+      run: echo "${{ secrets.ENV_FILE }}" > .env
+      
+    # 4. Install Composer dependencies for production
+    - name: Install Composer Dependencies
+      run: composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader
+
+    # 5. Generate a new application key (important!)
+    - name: Generate Laravel Key
+      run: php artisan key:generate
+      
+    # 6. Run optimizations for production
+    - name: Cache configuration
+      run: |
+        php artisan config:cache
+        php artisan route:cache
+        php artisan view:cache
+
+    # 7. Deploy the files using the FTP-Deploy-Action
+    - name: Deploy files via FTP
+      uses: SamKirkland/FTP-Deploy-Action@4.3.3
+      with:
+        # FTP Server credentials from GitHub Secrets
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        
+        # The directory on your cPanel server to deploy to.
+        # This is relative to your FTP user's root.
+        # '/' usually means the root, which might be 'public_html' or your home dir.
+        # Make sure this path is correct for your setup.
+        server-dir: /public_html/
+        
+        # Exclude files and directories that shouldn't be uploaded
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
+          .github/**
+          storage/logs/**
+          storage/framework/sessions/**
+          storage/framework/views/**
+          storage/framework/cache/data/**
+          README.md
+          .styleci.yml
+          .editorconfig
+          .gitattributes
+          phpunit.xml

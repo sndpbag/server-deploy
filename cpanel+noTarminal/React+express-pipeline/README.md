@@ -1,350 +1,452 @@
- 
-GitHub private repo + DigitalOcean auto deploy setup 🚀
+# 🚀 React Auto Deployment Guide (GitHub → DigitalOcean)
+
+> **Objective:**  
+> Automatically deploy your **React application** from a **private GitHub repository** to a **DigitalOcean droplet** with full SSH security and seamless CI/CD pipeline.
 
 ---
 
-```markdown
-# 🚀 React + Express Auto Deployment (GitHub → DigitalOcean)
+## 📋 Table of Contents
 
-> **Goal:**  
-> Automatically deploy your **React + Express (MERN)** app from a **private GitHub repository**  
-> to a **DigitalOcean droplet**, with full SSH security and PM2-based backend management.
+- [Project Structure](#-project-structure)
+- [Requirements](#-requirements)
+- [Server Setup](#%EF%B8%8F-server-setup)
+- [SSH Key Configuration](#-ssh-key-configuration)
+- [GitHub Actions Setup](#-github-actions-setup)
+- [Nginx Configuration](#-nginx-configuration)
+- [Troubleshooting](#-troubleshooting)
+- [Manual Deployment Commands](#-manual-deployment-commands)
 
 ---
 
 ## 📁 Project Structure
 
 ```
-
-/var/www/html/myproject/
-│
-├── client/   ← React Frontend
-└── server/   ← Express Backend
-
-````
-
----
-
-## 🧩 Requirements
-
-✅ GitHub private repository  
-✅ DigitalOcean droplet with SSH access  
-✅ Node.js + npm installed on the server  
-✅ Git installed (`git --version`)  
-✅ PM2 (recommended for backend management)
+/var/www/myapp/frontend/IACST-School/
+├── dist/              ← Built React files (production)
+├── src/               ← Source code
+├── public/            ← Static assets
+├── package.json
+└── vite.config.js
+```
 
 ---
 
-## ⚙️ Step 1: SSH into Your Server
+## ✅ Requirements
+
+- ✅ GitHub private repository
+- ✅ DigitalOcean droplet with SSH access
+- ✅ Node.js 18+ and npm installed on server
+- ✅ Git installed (`git --version`)
+- ✅ Nginx web server
+- ✅ Basic knowledge of Linux commands
+
+---
+
+## ⚙️ Server Setup
+
+### Step 1: SSH into Your Server
 
 ```bash
 ssh root@your_server_ip
-````
+```
 
-or (if using a non-root user)
+### Step 2: Install Required Packages
 
 ```bash
-ssh deploy@your_server_ip
+# Update system packages
+sudo apt update && sudo apt upgrade -y
+
+# Install essential tools
+sudo apt install -y git nodejs npm nginx
+
+# Verify installations
+node --version
+npm --version
+git --version
+nginx -v
+```
+
+### Step 3: Create Project Directory
+
+```bash
+# Create directory structure
+sudo mkdir -p /var/www/myapp/frontend/IACST-School
+
+# Set proper ownership
+sudo chown -R $USER:$USER /var/www/myapp
+
+# Navigate to project directory
+cd /var/www/myapp/frontend/IACST-School
 ```
 
 ---
 
-## 🪜 Step 2: Prepare the Server
+## 🔑 SSH Key Configuration
+
+### Step 1: Generate SSH Key on Server (Server → GitHub)
 
 ```bash
-sudo apt update
-sudo apt install -y git nodejs npm
+# Generate ED25519 SSH key
+ssh-keygen -t ed25519 -C "deploy@iacst-school" -f ~/.ssh/deploy_key -N ""
+
+# View the public key
+cat ~/.ssh/deploy_key.pub
 ```
 
-Create your project directory:
+**Copy the entire output** (starts with `ssh-ed25519`)
 
-```bash
-sudo mkdir -p /var/www/html/myproject
-sudo chown -R $USER:$USER /var/www/html/myproject
-cd /var/www/html/myproject
-```
+### Step 2: Add Deploy Key to GitHub
 
----
+1. Go to your GitHub repository
+2. Navigate to **Settings** → **Deploy Keys** → **Add Deploy Key**
+3. Fill in:
+   - **Title:** `DigitalOcean Deploy Key`
+   - **Key:** Paste your public key
+   - ✅ Check **Allow write access** (if needed)
+4. Click **Add key**
 
-## 🔑 Step 3: Setup SSH Key (Server → GitHub)
-
-Generate SSH key on your server:
-
-```bash
-ssh-keygen -t ed25519 -C "deploy@myproject"
-```
-
-(Press Enter for all questions)
-
-View the public key:
-
-```bash
-cat ~/.ssh/id_ed25519.pub
-```
-
-Copy the entire line and add it to your GitHub repo:
-
-➡️ **GitHub → Repo → Settings → Deploy Keys → Add Deploy Key**
-
-* Title: `DigitalOcean Deploy Key`
-* Key: *(paste your public key here)*
-* ✅ Check **Allow write access**
-
----
-
-## 🧠 Step 4: Test the SSH Connection
+### Step 3: Test SSH Connection
 
 ```bash
 ssh -T git@github.com
 ```
 
-Expected output:
-
+✅ Expected output:
 ```
-Hi sndpbag/myproject! You've successfully authenticated, but GitHub does not provide shell access.
+Hi username/IACST-School! You've successfully authenticated, but GitHub does not provide shell access.
+```
+
+### Step 4: Clone Your Repository
+
+```bash
+cd /var/www/myapp/frontend/IACST-School
+
+# Clone using SSH
+git clone git@github.com:username/IACST-School.git .
 ```
 
 ---
 
-## 🪜 Step 5: Clone Your Project
+## 🔑 SSH Key for GitHub Actions (GitHub → Server)
+
+### Step 1: Generate SSH Key on Your Local Machine
 
 ```bash
-cd /var/www/html/myproject
-git clone git@github.com:sndpbag/myproject.git .
+# Generate key for GitHub Actions
+ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/github_actions_key -N ""
+
+# View public key (add this to server)
+cat ~/.ssh/github_actions_key.pub
+
+# View private key (add this to GitHub Secrets)
+cat ~/.ssh/github_actions_key
+```
+
+### Step 2: Add Public Key to Server
+
+SSH into your server and add the public key:
+
+```bash
+# Add public key to authorized_keys
+echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... github-actions-deploy" >> ~/.ssh/authorized_keys
+
+# Set proper permissions
+chmod 600 ~/.ssh/authorized_keys
+chmod 700 ~/.ssh
+
+# Verify the key was added
+cat ~/.ssh/authorized_keys
+```
+
+### Step 3: Add Private Key to GitHub Secrets
+
+1. Go to your GitHub repository
+2. Navigate to **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+4. Add the following secrets:
+
+| Secret Name | Value | Example |
+|------------|-------|---------|
+| `SSH_HOST` | Your server IP address | `164.52.xxx.xxx` |
+| `SSH_USER` | Server username | `root` or `ubuntu` |
+| `SSH_KEY` | Complete private key | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
+| `SSH_PORT` | SSH port | `22` |
+
+⚠️ **Important:** When adding `SSH_KEY`, paste the **complete private key** including:
+- `-----BEGIN OPENSSH PRIVATE KEY-----`
+- All the encrypted content
+- `-----END OPENSSH PRIVATE KEY-----`
+
+### Step 4: Test SSH Connection from Local
+
+```bash
+# Test if the key works
+ssh -i ~/.ssh/github_actions_key root@your_server_ip
 ```
 
 ---
 
-## ⚙️ Step 6: Initial Setup
+## 🚀 GitHub Actions Setup
 
-### Build React
+### Step 1: Create Workflow File
 
-```bash
-cd client
-npm install
-npm run build
-```
-
-### Setup Express
-
-```bash
-cd ../server
-npm install
-node index.js
-```
-
-✅ Test in browser → `http://your_server_ip:3000`
-
----
-
-## 🧩 Step 7: Configure GitHub Actions (Auto Deploy)
-
-In your project repo, create the file:
-`.github/workflows/deploy.yml`
+In your repository, create `.github/workflows/deploy.yml`:
 
 ```yaml
-name: 🚀 Auto Deploy to DigitalOcean
+name: 🚀 Build & Deploy React Client
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
 
 jobs:
-  deploy:
+  build-deploy:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.0
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies & Build
+        run: |
+          npm ci
+          npm run build
+
+      - name: 1. Clean Old Files on Server
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            cd /var/www/html/myproject
-            git fetch origin main
-            git reset --hard origin/main
+            rm -rf /var/www/myapp/frontend/IACST-School/*
+            echo "🧹 Old build cleaned."
 
-            # Build React client
-            cd client
-            npm ci
-            npm run build
+      - name: 2. Upload New Build to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "dist/*"
+          target: "/var/www/myapp/frontend/IACST-School"
+          strip_components: 1
 
-            # Restart Express backend
-            cd ../server
-            npm ci
-            pkill node || true
-            pm2 restart all || pm2 start index.js --name myproject
-
-            echo "✅ Deployment completed successfully"
+      - name: 3. Reload Nginx
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            sudo systemctl reload nginx
+            echo "🔁 Nginx Reloaded at $(date)" >> /var/www/myapp/frontend/IACST-School/deploy.log
+            echo "✅ Deployment completed successfully!"
 ```
 
----
-
-## 🔐 Step 8: Add GitHub Secrets
-
-Go to → **GitHub → Repo → Settings → Secrets → Actions**
-
-| Name       | Example                                 |
-| ---------- | --------------------------------------- |
-| `SSH_HOST` | `your_server_ip`                        |
-| `SSH_PORT` | `22`                                    |
-| `SSH_USER` | `root` or `deploy`                      |
-| `SSH_KEY`  | *(paste your private key content here)* |
-
-> ⚠️ Paste the full private key (from `/home/youruser/.ssh/id_ed25519`)
-
-Example key format:
-
-```
------BEGIN OPENSSH PRIVATE KEY-----
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
------END OPENSSH PRIVATE KEY-----
-```
-
----
-
-## ⚙️ Step 9: Express Server Configuration
-
-In your `server/index.js`:
-
-```js
-const express = require("express");
-const path = require("path");
-const app = express();
-
-app.use(express.static(path.join(__dirname, "../client/build")));
-
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../client/build", "index.html"));
-});
-
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
-});
-```
-
----
-
-## ⚙️ Step 10: Run with PM2 (Production Mode)
-
-Install PM2 globally:
+### Step 2: Commit and Push
 
 ```bash
-sudo npm install -g pm2
-```
-
-Start your backend:
-
-```bash
-cd /var/www/html/myproject/server
-pm2 start index.js --name myproject
-pm2 save
-pm2 startup
-```
-
-✅ Now Express restarts automatically after reboots.
-
----
-
-## 🧩 Step 11: Trigger Deployment
-
-Anytime you push changes to GitHub:
-
-```bash
-git add .
-git commit -m "update navbar"
+git add .github/workflows/deploy.yml
+git commit -m "Add GitHub Actions deployment workflow"
 git push origin main
 ```
 
-GitHub → Actions will:
-
-1️⃣ SSH into your DigitalOcean server
-2️⃣ Pull latest code
-3️⃣ Build React app
-4️⃣ Restart Express app via PM2
-5️⃣ ✅ Deploy automatically
-
 ---
 
-## 🧠 Step 12: Debugging Common Issues
+## 🌐 Nginx Configuration
 
-| Issue                                    | Reason                           | Fix                                   |
-| ---------------------------------------- | -------------------------------- | ------------------------------------- |
-| `Permission denied (publickey)`          | Key mismatch                     | Regenerate SSH key, re-add Deploy Key |
-| `ssh.ParsePrivateKey: ssh: no key found` | Incomplete key in GitHub Secrets | Re-copy full private key              |
-| `npm: command not found`                 | Node missing                     | `sudo apt install nodejs npm`         |
-| React build missing                      | Build failed                     | `npm run build` manually              |
-| App not updating                         | Cache or wrong branch            | Clear PM2 + Browser cache             |
-
----
-
-## 🧰 Manual Commands Cheat Sheet
+### Step 1: Create Nginx Configuration
 
 ```bash
-# SSH into server
+sudo nano /etc/nginx/sites-available/iacst-school
+```
+
+Add the following configuration:
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com www.your-domain.com;
+
+    root /var/www/myapp/frontend/IACST-School;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Gzip compression
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+    # Cache static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
+```
+
+### Step 2: Enable the Site
+
+```bash
+# Create symbolic link
+sudo ln -s /etc/nginx/sites-available/iacst-school /etc/nginx/sites-enabled/
+
+# Test Nginx configuration
+sudo nginx -t
+
+# Reload Nginx
+sudo systemctl reload nginx
+```
+
+### Step 3: Setup SSL (Optional but Recommended)
+
+```bash
+# Install Certbot
+sudo apt install certbot python3-certbot-nginx -y
+
+# Obtain SSL certificate
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+
+# Auto-renewal is enabled by default
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### Common Issues and Solutions
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| `Permission denied (publickey)` | SSH key not configured | Re-add public key to server's `authorized_keys` |
+| `Could not resolve "./router/Router"` | Case-sensitive path issue | Use `git mv` to rename folder correctly |
+| `ssh: handshake failed` | Private key not in GitHub Secrets | Add complete private key to `SSH_KEY` secret |
+| `npm: command not found` | Node.js not installed | Run `sudo apt install nodejs npm` |
+| Build files not updating | Cache issue | Clear browser cache and hard reload |
+| Nginx 404 error | Wrong root path | Check `root` directive in Nginx config |
+
+### Debugging Commands
+
+```bash
+# Check GitHub Actions logs
+# Go to: Repository → Actions → Click on workflow run
+
+# SSH into server and check
 ssh root@your_server_ip
 
-# Go to project
-cd /var/www/html/myproject
+# View Nginx error logs
+sudo tail -f /var/log/nginx/error.log
 
-# Pull latest code manually
+# Check if files deployed
+ls -la /var/www/myapp/frontend/IACST-School/
+
+# Test Nginx configuration
+sudo nginx -t
+
+# Check Nginx status
+sudo systemctl status nginx
+
+# View deployment log
+cat /var/www/myapp/frontend/IACST-School/deploy.log
+```
+
+---
+
+## 📝 Manual Deployment Commands
+
+If automatic deployment fails, use these commands:
+
+```bash
+# 1. SSH into server
+ssh root@your_server_ip
+
+# 2. Navigate to project
+cd /var/www/myapp/frontend/IACST-School
+
+# 3. Pull latest changes
 git fetch origin main
 git reset --hard origin/main
 
-# React build
-cd client && npm run build
+# 4. Install dependencies
+npm ci
 
-# Restart PM2 backend
-cd ../server && pm2 restart myproject
+# 5. Build project
+npm run build
 
-# Check logs
-pm2 logs myproject
+# 6. Copy build files (if needed)
+# Already in correct location
+
+# 7. Reload Nginx
+sudo systemctl reload nginx
+
+# 8. Check status
+curl http://localhost
 ```
 
 ---
 
 ## ✅ Final Checklist
 
-| Task                                    | Status |
-| --------------------------------------- | ------ |
-| SSH key created on server               | ✅      |
-| Public key added to GitHub Deploy Keys  | ✅      |
-| Private key added to GitHub Secrets     | ✅      |
-| GitHub Action configured (`deploy.yml`) | ✅      |
-| PM2 running backend                     | ✅      |
-| React auto builds on deploy             | ✅      |
-| Deployment success log in Actions       | ✅      |
+Before going live, ensure:
+
+- [ ] Server SSH key added to GitHub Deploy Keys
+- [ ] GitHub Actions SSH key added to server's `authorized_keys`
+- [ ] All GitHub Secrets configured correctly (`SSH_HOST`, `SSH_USER`, `SSH_KEY`, `SSH_PORT`)
+- [ ] GitHub Actions workflow file created (`.github/workflows/deploy.yml`)
+- [ ] Nginx configured and running
+- [ ] Domain pointing to server IP (if using custom domain)
+- [ ] SSL certificate installed (recommended)
+- [ ] First deployment successful
+- [ ] Website accessible via browser
 
 ---
 
-## 🎉 Done!
+## 🎉 Deployment Flow
 
-Every time you push to GitHub `main` branch,
-GitHub Actions will automatically deploy your React + Express app to DigitalOcean,
-build the frontend, restart the backend, and make your website live instantly. 🚀
+Every time you push to the `main` branch:
 
----
+1. 🔄 GitHub Actions triggers automatically
+2. 📦 Dependencies installed and project built
+3. 🧹 Old files cleaned from server
+4. 📤 New build files uploaded to server
+5. 🔁 Nginx reloaded to serve new content
+6. ✅ Website live with latest changes
 
-### 💬 Author
-
-**Sandipan Kr Bag**
-Full Stack Web Developer | Trainer | Creator of "sndp bag 4 you"
-GitHub: [@sndpbag](https://github.com/sndpbag)
-
----
-
-```
+**Total deployment time:** ~2-3 minutes ⚡
 
 ---
 
-## ✍️ Author
+## 📚 Additional Resources
 
-**👨‍💻 Sandipan Kr Bag** — *Full Stack Web Developer*  
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
+- [DigitalOcean Community Tutorials](https://www.digitalocean.com/community/tutorials)
+- [Nginx Documentation](https://nginx.org/en/docs/)
+- [Vite Build Guide](https://vitejs.dev/guide/build.html)
+
+---
+
+## 💬 Author
+
+**Sandipan Kr Bag**  
+Full Stack Web Developer | Trainer | Creator
 
 📺 **YouTube:** [sndp bag 4 you](https://www.youtube.com/@sndpbag4you)  
 💼 **GitHub:** [@sndpbag](https://github.com/sndpbag)  
 🌐 **Portfolio:** [creazioneinteriors.in](https://creazioneinteriors.in)
+
+---
+
+## 📄 License
+
+This guide is free to use and modify for your projects.
+
+---
+
+**⭐ If this guide helped you, please star the repository!**

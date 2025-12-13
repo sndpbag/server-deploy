@@ -85,6 +85,10 @@ chmod 600 /root/.ssh/authorized_keys
 
 🧪 STEP 4: Local থেকে Test
 ssh -i ~/.ssh/github_actions_key root@YOUR_SERVER_IP
+
+
+
+
 ssh -i ~/.ssh/github_actions_key root@209.38.120.113
 
 যদি login হয়:

@@ -12,7 +12,7 @@ Public Key → Server এর কাছে থাকে
 ✅ STEP 1: Local Machine-এ Deploy Key Generate করো
 CMD দিয়ে generate
 
-ssh-keygen -t ed25519 -C "github-actions-deploy" -f "%USERPROFILE%\.ssh\github_actions_key" -N ""
+ssh-keygen -t ed25519 -C "github-actions-deploy" -f "%USERPROFILE%\\.ssh\github_actions_key" -N ""
 
 🎉 Output এরকম হবে:
 Your identification has been saved in github_actions_key

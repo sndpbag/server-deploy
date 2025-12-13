@@ -98,7 +98,7 @@ Welcome to Ubuntu 25.04 (GNU/Linux 6.14.0-29-generic x86_64)
 এখন তোমার কাজ হলো local এ তৈরি করা Private Key → GitHub private repo-র Actions Secret এ যোগ করা।
 ✅ STEP 1 — Local Private Key ওপেন করো
 CMD (Windows):
-type %USERPROFILE%\.ssh\github_actions_key
+type %USERPROFILE%\\.ssh\github_actions_key
 
 এটার output শুরু হবে:
 

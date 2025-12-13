@@ -21,14 +21,14 @@ Your public key has been saved in github_actions_key.pub
 
 Then files will be created:
 
-C:\Users\user\.ssh\github_actions_key
-C:\Users\user\.ssh\github_actions_key.pub
+C:\Users\user\\.ssh\github_actions_key
+C:\Users\user\\.ssh\github_actions_key.pub
 
 ✅ STEP 2: Public Key → Server-এর authorized_keys এ যোগ করো
 
 🔹 Public key open korar command (PowerShell/CMD)
 
-type C:\Users\your-username\.ssh\github_actions_key.pub
+type C:\Users\your-username\\.ssh\github_actions_key.pub
 
 Example:
 type C:\Users\user\.ssh\github_actions_key.pub

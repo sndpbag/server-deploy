@@ -31,7 +31,7 @@ C:\Users\user\\.ssh\github_actions_key.pub
 type C:\Users\your-username\\.ssh\github_actions_key.pub
 
 Example:
-type C:\Users\user\.ssh\github_actions_key.pub
+type C:\Users\user\\.ssh\github_actions_key.pub
 
 নিচের মত কোড দেখা যাবে ওটা কপি কর 
 C:\Users\user>type C:\Users\user\.ssh\github_actions_key.pub
